@@ -25,6 +25,6 @@ namespace format {
 	}
 
 	export inline std::string format_die(std::integral auto die_type, std::integral auto result) {
-		return std::format("{}", format_roll_output(die_type, result));
+		return format_roll_output(die_type, result);
 	}
 }

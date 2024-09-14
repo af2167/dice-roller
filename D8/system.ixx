@@ -3,6 +3,8 @@ export module system;
 import std;
 import formatting;
 
+import <ctre.hpp>;
+
 constexpr std::string_view advantage = "advantage";
 constexpr std::string_view disadvantage = "disadvantage";
 
@@ -21,201 +23,284 @@ static std::optional<T> parse(std::string_view v) {
 		return std::nullopt;
 }
 
+template <typename T>
+static std::optional<T> parse_modifier(std::string_view v) {
+	if (v[0] == '+') {
+		v = v.substr(1);
+	}
+
+	return parse<T>(v);
+}
+
+enum class special_roll {
+	none,
+	advantage,
+	disadvantage
+};
+
+class dnd_roller {
+	special_roll special = special_roll::none;
+	int die_type = 20;
+	int die_count = 1;
+	int modifier = 0;
+	bool is_multimodifier = false;
+
+	bool parse_coin(std::string_view v) {
+		if (v == "coin") {
+			die_type = 2;
+			return true;
+		}
+
+		return false;
+	}
+
+	std::expected<bool, std::string> parse_advantage(std::string_view v) {
+		if (auto m = ctre::match<"^advantage\\s*([\\+\\-]?\\d+)?$">(v)) {
+			special = special_roll::advantage;
+			auto matched_modifier = m.get<1>().to_view();
+			if (matched_modifier.length() > 0) {
+				auto maybe_mod = parse_modifier<int>(matched_modifier);
+				if (maybe_mod) {
+					modifier = *maybe_mod;
+				} else {
+					return std::unexpected{ std::format("invalid modifier: {}", matched_modifier) };
+				}
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	std::expected<bool, std::string> parse_disadvantage(std::string_view v) {
+		if (auto m = ctre::match<"^disadvantage\\s*([\\+\\-]?\\d+)?$">(v)) {
+			special = special_roll::disadvantage;
+			auto matched_modifier = m.get<1>().to_view();
+			if (matched_modifier.length() > 0) {
+				auto maybe_mod = parse_modifier<int>(matched_modifier);
+				if (maybe_mod) {
+					modifier = *maybe_mod;
+				} else {
+					return std::unexpected{ std::format("invalid modifier: {}", matched_modifier) };
+				}
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	std::expected<bool, std::string> parse_single_die(std::string_view v) {
+		if (auto m = ctre::match<"^[dD]?(\\d+)$">(v)) {
+			auto matched_die_type = m.get<1>().to_view();
+			auto maybe_die_type = parse<int>(matched_die_type);
+			if (maybe_die_type) {
+				die_type = *maybe_die_type;
+			} else {
+				return std::unexpected{ std::format("invalid die type: {}", matched_die_type) };
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	std::expected<bool, std::string> parse_otherwise(std::string_view v) {
+		if (auto m = ctre::match<"^(\\d+)[dD]?(\\d+)([\\+\\-]\\d+[aA]?)?$">(v)) {
+			auto matched_die_count = m.get<1>().to_view();
+			auto maybe_die_count = parse<int>(matched_die_count);
+			if (maybe_die_count) {
+				die_count = *maybe_die_count;
+			} else {
+				return std::unexpected{ std::format("invalid die count: {}", matched_die_count) };
+			}
+			auto matched_die_type = m.get<2>().to_view();
+			auto maybe_die_type = parse<int>(matched_die_type);
+			if (maybe_die_type) {
+				die_type = *maybe_die_type;
+			} else {
+				return std::unexpected{ std::format("invalid die type: {}", matched_die_type) };
+			}
+			auto matched_modifier = m.get<3>().to_view();
+			if (matched_modifier.length() > 0) {
+				if (std::tolower(matched_modifier[matched_modifier.length() - 1]) == 'a') {
+					is_multimodifier = true;
+					matched_modifier = matched_modifier.substr(0, matched_modifier.length() - 1);
+				}
+
+				auto maybe_modifier = parse_modifier<int>(matched_modifier);
+				if (maybe_modifier) {
+					modifier = *maybe_modifier;
+				} else {
+					return std::unexpected{ std::format("invalid modifier: {}", matched_modifier) };
+				}
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	auto roll_not_special(std::mt19937& gen) const {
+		std::string result;
+		auto total = 0;
+
+		for (auto i = 0; i < die_count; ++i) {
+			auto die = roll_die(die_type, gen);
+			total += die;
+
+			if (i > 0) {
+				result += ", ";
+			}
+
+			if (is_multimodifier || i == 0) {
+				result += format::format_die(die_type, die, modifier);
+				total += modifier;
+			} else {
+				result += format::format_die(die_type, die);
+			}
+		}
+
+		result += std::format("\nFor a total roll value of: {}", total);
+		return result;
+	}
+
+	auto roll_advantage_or_disadvantage(std::mt19937& gen, bool is_advantage) const {
+		auto die1 = roll_die(20, gen);
+		auto die2 = roll_die(20, gen);
+
+		if (is_advantage) {
+			return std::format("Advantage result: {}", format::format_die(20, std::max(die1, die2), modifier));
+		}
+
+		return std::format("Disadvantage result: {}", format::format_die(20, std::min(die1, die2), modifier));
+	}
+
+public:
+	std::optional<std::string> parse_(std::string_view v) {
+		special = special_roll::none;
+		die_type = 20;
+		die_count = 1;
+		modifier = 0;
+		is_multimodifier = false;
+
+		if (parse_coin(v)) {
+			return std::nullopt;
+		}
+
+		auto a = parse_advantage(v);
+		if (a && *a) {
+			return std::nullopt;
+		} else if (!a) {
+			return a.error();
+		}
+
+		auto d = parse_disadvantage(v);
+		if (d && *d) {
+			return std::nullopt;
+		} else if (!d) {
+			return d.error();
+		}
+
+		auto s = parse_single_die(v);
+		if (s && *s) {
+			return std::nullopt;
+		} else if (!s) {
+			return s.error();
+		}
+
+		auto o = parse_otherwise(v);
+		if (o && *o) {
+			return std::nullopt;
+		} else if (!o) {
+			return o.error();
+		}
+
+		return std::string{ "That is not a valid roll type" };
+	}
+
+	std::string perform_roll(std::mt19937& gen) const {
+		switch (special) {
+		case special_roll::none:
+			return roll_not_special(gen);
+		case special_roll::advantage:
+			return roll_advantage_or_disadvantage(gen, true);
+		case special_roll::disadvantage:
+			return roll_advantage_or_disadvantage(gen, false);
+		}
+
+		throw std::format("An invalid special rolling state was parsed: {}", std::to_underlying(special));
+	}
+};
+
+class kob_roller {
+	int die_type = 4;
+
+	void graduate_die() {
+		switch (die_type) {
+		case 4: die_type = 6; break;
+		case 6: die_type = 8; break;
+		case 8: die_type = 10; break;
+		case 10: die_type = 12; break;
+		case 12: die_type = 20; break;
+		}
+	}
+
+public:
+	std::optional<std::string> parse_(std::string_view v) {
+		auto maybe_die_type = parse<int>(v);
+		if (maybe_die_type) {
+			die_type = *maybe_die_type;
+			return std::nullopt;
+		}
+
+		return std::string{ "That is not a valid roll type" };
+	}
+
+	std::string perform_roll(std::mt19937& gen) {
+		std::string result;
+		auto total = 0;
+
+		for (auto keep_rolling = true; keep_rolling;) {
+			auto roll_result = roll_die(die_type, gen);
+			total += roll_result;
+			result += format::format_die(die_type, roll_result);
+			if (roll_result != die_type) {
+				keep_rolling = false;
+			} else {
+				result += " EXPLOSION, ";
+				graduate_die();
+			}
+		}
+
+		result += std::format("\nFor a total roll value of: {}", total);
+		return result;
+	}
+};
+
 export namespace sys {
-	enum class special_roll {
-		none,
-		advantage,
-		disadvantage
+	enum class rolling_type {
+		dungeons_and_dragons,
+		kids_on_bikes
 	};
 
-	struct parts {
-		int die_type = 20;
-		int die_count = 1;
-		int modifier = 0;
-		bool is_multimodifier = false;
-		special_roll special = special_roll::none;
-
-		void graduate_die() {
-			switch (die_type) {
-			case 4: die_type = 6; break;
-			case 6: die_type = 8; break;
-			case 8: die_type = 10; break;
-			case 10: die_type = 12; break;
-			case 12: die_type = 20; break;
-			}
-		}
-	};
-
-	struct system_t {
-		system_t(system_t&&) = delete;
-		system_t(const system_t&) = delete;
-		system_t& operator=(system_t&&) = delete;
-		system_t& operator=(const system_t&) = delete;
-
-		system_t() = default;
-		virtual ~system_t() = default;
-
-		virtual std::optional<parts> parse_input(std::string_view) = 0;
-
-		virtual std::string perform_roll(parts p) = 0;
-	};
-
-	class dnd_system : public system_t {
-		std::mt19937& gen_;
-
-		std::optional<parts> parse_special(std::string_view v, std::string_view special_type, sys::special_roll type) {
-			int modifier{};
-			char plus{};
-
-			if (v.length() > special_type.length()) {
-				std::ispanstream s{ std::span{ v.data() + special_type.length(), v.length() } };
-				s >> plus >> modifier;
-
-				if (modifier == 0 || (plus != '+' && plus != '-')) {
-					return std::nullopt;
-				}
-
-				if (plus == '-') {
-					modifier *= -1;
-				}
-			}
-
-			return{ sys::parts{.modifier = modifier, .special = type } };
-		}
-
-		std::optional<parts> parse_regular(std::string_view v) {
-			std::ispanstream s{ std::span{ v.data(), v.length() } };
-
-			int die_type{}, modifier{}, die_count{};
-			bool is_multimodifier{};
-			char d{}, plus{}, all{};
-			s >> die_count >> d >> die_type;
-
-			if (std::tolower(d) != 'd') {
-				return std::nullopt;
-			}
-
-			if (!s.eof()) {
-				s >> plus >> modifier;
-				if (plus != '+' && plus != '-') {
-					return std::nullopt;
-				}
-				if (plus == '-') {
-					modifier *= -1;
-				}
-			}
-
-			if (!s.eof()) {
-				s >> all;
-				if (all != 'a') {
-					return std::nullopt;
-				}
-				is_multimodifier = true;
-			}
-
-			return std::optional<parts>{ parts{ die_type, die_count, modifier, is_multimodifier } };
-		}
-
-		auto roll_not_special(int die_count, int die_type, int modifier, bool is_multimodifier) {
-			std::string result;
-			auto total = 0;
-
-			for (auto i = 0; i < die_count; ++i) {
-				auto die = roll_die(die_type, gen_);
-				total += die;
-
-				if (i > 0) {
-					result += ", ";
-				}
-
-				if (is_multimodifier || i == 0) {
-					result += format::format_die(die_type, die, modifier);
-					total += modifier;
-				} else {
-					result += format::format_die(die_type, die);
-				}
-			}
-
-			result += std::format("\nFor a total roll value of: {}", total);
-			return result;
-		}
-
-		auto roll_advantage_or_disadvantage(int modifier, bool is_advantage) {
-			auto die1 = roll_die(20, gen_);
-			auto die2 = roll_die(20, gen_);
-
-			if (is_advantage) {
-				return std::format("Advantage result: {}", format::format_die(20, std::max(die1, die2), modifier));
-			}
-
-			return std::format("Disadvantage result: {}", format::format_die(20, std::min(die1, die2), modifier));
-		}
-
+	class system {
+		std::variant<dnd_roller, kob_roller> roller{};
 	public:
-		dnd_system(std::mt19937& gen) : gen_{ gen } {}
-
-		std::optional<parts> parse_input(std::string_view v) override {
-			if (v.starts_with(advantage)) {
-				return parse_special(v, advantage, special_roll::advantage);
+		system(rolling_type t) {
+			if (t == rolling_type::dungeons_and_dragons) {
+				roller = dnd_roller{};
+			} else if (t == rolling_type::kids_on_bikes) {
+				roller = kob_roller{};
 			}
-			if (v.starts_with(disadvantage)) {
-				return parse_special(v, disadvantage, special_roll::disadvantage);
-			}
-			if (v == "coin") {
-				return std::optional<parts>{ parts{ .die_type = 2 } };
-			}
-			if (std::tolower(v[0]) == 'd') {
-				return parse<int>(v.substr(1))
-					.transform([](auto i) { return parts{ i }; });
-			}
-
-			return parse_regular(v);
 		}
 
-		std::string perform_roll(parts p) override {
-			switch (p.special) {
-			case special_roll::none:
-				return roll_not_special(p.die_count, p.die_type, p.modifier, p.is_multimodifier);
-			case special_roll::advantage:
-				return roll_advantage_or_disadvantage(p.modifier, true);
-			case special_roll::disadvantage:
-				return roll_advantage_or_disadvantage(p.modifier, false);
-			}
+		std::optional<std::string> parse(std::string_view v) {
+			return std::visit([v](auto&& r) { return r.parse_(v); }, roller);
+		}
 
-			throw std::format("An invalid special rolling state was parsed: {}", std::to_underlying(p.special));
+		std::string perform_roll(std::mt19937& gen) {
+			return std::visit([&gen](auto&& r) { return r.perform_roll(gen); }, roller);
 		}
 	};
-
-	class explosion_system : public system_t {
-		std::mt19937& gen_;
-	public:
-		explosion_system(std::mt19937& gen) : gen_{ gen } {}
-
-		std::optional<parts> parse_input(std::string_view v) override {
-			return parse<int>(v)
-				.transform([](auto i) { return parts{ i }; });
-		}
-
-		std::string perform_roll(parts p) override {
-			std::string result;
-			auto total = 0;
-
-			for (auto keep_rolling = true; keep_rolling;) {
-				auto roll_result = roll_die(p.die_type, gen_);
-				total += roll_result;
-				result += format::format_die(p.die_type, roll_result);
-				if (roll_result != p.die_type) {
-					keep_rolling = false;
-				} else {
-					result += " EXPLOSION, ";
-					p.graduate_die();
-				}
-			}
-
-			result += std::format("\nFor a total roll value of: {}", total);
-			return result;
-		}
-	};
-
-	using system = std::unique_ptr<system_t>;
 }

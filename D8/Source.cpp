@@ -63,27 +63,27 @@ static std::expected<std::string, unexpected_prompt> get_response(std::format_st
 	}
 }
 
-static std::optional<sys::system> choose_system(std::string_view choice, std::mt19937& gen) {
+static std::optional<sys::system> choose_system(std::string_view choice) {
 	if (choice.length() < 1) {
 		return std::nullopt;
 	}
 
 	if (choice == "DnD" || std::tolower(choice[0]) == 'd') {
-		return std::optional<sys::system>{ std::make_unique<sys::dnd_system>(gen) };
+		return{ sys::rolling_type::dungeons_and_dragons };
 	} else if (choice == "explosion" || std::tolower(choice[0]) == 'e') {
-		return std::optional<sys::system>{ std::make_unique<sys::explosion_system>(gen) };
+		return{ sys::rolling_type::kids_on_bikes };
 	}
 
 	return std::nullopt;
 }
 
-static std::expected<sys::system, unexpected_prompt> prompt_for_system(std::mt19937& gen) {
+static std::expected<sys::system, unexpected_prompt> prompt_for_system() {
 	while (true) {
 		auto response = get_response("What system would you like to use? ");
 		if (!response) {
 			return std::unexpected(response.error());
 		}
-		auto result = choose_system(*response, gen);
+		auto result = choose_system(*response);
 		if (result.has_value()) {
 			return std::move(*result);
 		}
@@ -91,7 +91,7 @@ static std::expected<sys::system, unexpected_prompt> prompt_for_system(std::mt19
 	}
 }
 
-static unexpected_prompt prompt_for_roll(sys::system& system) {
+static unexpected_prompt prompt_for_roll(sys::system& system, std::mt19937& gen) {
 	while (true) {
 		auto input = get_response("Please describe the roll: ");
 
@@ -99,11 +99,11 @@ static unexpected_prompt prompt_for_roll(sys::system& system) {
 			return input.error();
 		}
 
-		auto parsed = system->parse_input(*input);
-		if (!parsed) {
-			std::println("That is not a valid roll.");
+		auto parse_error = system.parse(*input);
+		if (parse_error) {
+			std::println("{}", *parse_error);
 		} else {
-			std::println("{}", system->perform_roll(*parsed));
+			std::println("{}", system.perform_roll(gen));
 		}
 	}
 }
@@ -115,13 +115,13 @@ int main() {
 	std::println("Welcome to the dice rolling application.");
 	std::println("You may enter the command 'help' at any time to get a list of options.");
 
-	auto system = prompt_for_system(gen);
+	auto system = prompt_for_system();
 
 	while (system) {
-		auto escape = prompt_for_roll(system.value());
+		auto escape = prompt_for_roll(system.value(), gen);
 
 		switch (escape) {
-		case unexpected_prompt::change: system = prompt_for_system(gen); break;
+		case unexpected_prompt::change: system = prompt_for_system(); break;
 		case unexpected_prompt::exit: return 0;
 		}
 	}
