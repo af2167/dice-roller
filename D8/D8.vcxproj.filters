@@ -18,13 +18,17 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="formatting.ixx" />
-    <ClCompile Include="streaming.ixx" />
-    <ClCompile Include="system.ixx">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="formatting.ixx">
+      <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="parser.ixx">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="streaming.ixx">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="system.ixx">
+      <Filter>Header Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

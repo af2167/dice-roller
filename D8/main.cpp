@@ -1,4 +1,4 @@
-// Source.cpp (In project D8)
+// main.cpp
 // This program rolls any die that the user would like
 // It terminates after the user no longer needs it as defined by the user
 // This program is optimized for D&D
