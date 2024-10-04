@@ -1,8 +1,0 @@
-Package: ctre
-Version: 3.9.0
-Depends: vcpkg-cmake:x64-windows, vcpkg-cmake-config:x64-windows
-Architecture: x86-windows
-Multi-Arch: same
-Abi: 99cfda518cf1d7817625d5c55f58cac693d7d7f95afdb83c8a4e9733e06ed00d
-Description: A Compile time PCRE (almost) compatible regular expression matcher
-Status: install ok half-installed
