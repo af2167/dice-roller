@@ -4,7 +4,7 @@ import std;
 import system;
 import streaming;
 
-import <ctre.hpp>;
+import dependencies_without_module_support;
 
 constexpr std::string_view help_text = R"(When prompted for a dice rolling system you have two options:
     1) DnD (or 'd' for short)

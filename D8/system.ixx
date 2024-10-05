@@ -3,7 +3,7 @@ export module system;
 import std;
 import formatting;
 
-import <ctre.hpp>;
+import dependencies_without_module_support;
 
 constexpr auto is_advantage_string = ctre::match<"^advantage\\s*([\\+\\-]?\\d+)?$">;
 constexpr auto is_disadvantage_string = ctre::match<"^disadvantage\\s*([\\+\\-]?\\d+)?$">;
@@ -296,11 +296,11 @@ export namespace sys {
 		std::variant<dungeons_and_dragons_roller, kids_on_bikes_roller> roller{};
 
 		std::optional<std::string> parse(std::string_view v) {
-			return std::visit([v](auto&& r) { return r.parse(v); }, roller);
+			return std::visit([v](auto& r) { return r.parse(v); }, roller);
 		}
 
 		std::string perform_roll(std::mt19937& gen) {
-			return std::visit([&gen](auto&& r) { return r.perform_roll(gen); }, roller);
+			return std::visit([&gen](auto& r) { return r.perform_roll(gen); }, roller);
 		}
 	};
 }

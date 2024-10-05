@@ -30,6 +30,9 @@
     <ClCompile Include="system.ixx">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="dependencies_without_module support.ixx">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
