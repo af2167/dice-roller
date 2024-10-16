@@ -363,3 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 
 D8/vcpkg_installed/*
+CMakePresets.json
+CMakeUserPresets.json
+build/*
