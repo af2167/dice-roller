@@ -1,5 +1,6 @@
 {
   "dependencies": [
-    "ctre"
+    "ctre",
+    "catch2"
   ]
 }

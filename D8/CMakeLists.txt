@@ -1,6 +1,7 @@
 set(PROJECT_NAME dice_roller)
 
 find_package(ctre CONFIG REQUIRED)
+find_package(Catch2 3 REQUIRED)
 
 ################################################################################
 # Source groups
@@ -14,22 +15,16 @@ set(Header_Files
 )
 source_group("Header Files" FILES ${Header_Files})
 
-set(Source_Files
-    "main.cpp"
-)
-source_group("Source Files" FILES ${Source_Files})
-
-set(ALL_FILES
-    ${Header_Files}
-    ${Source_Files}
-)
-
 ################################################################################
 # Target
 ################################################################################
-add_executable(${PROJECT_NAME} ${ALL_FILES})
-
+add_executable(${PROJECT_NAME} main.cpp tests.cpp ${Header_Files})
 target_link_libraries(${PROJECT_NAME} PRIVATE ctre::ctre)
+target_link_libraries(${PROJECT_NAME} PRIVATE Catch2::Catch2)
+
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME})
 
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
 set(ROOT_NAMESPACE D8)
