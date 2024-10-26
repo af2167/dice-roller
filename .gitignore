@@ -367,3 +367,4 @@ CMakePresets.json
 CMakeUserPresets.json
 build/*
 .vscode/*
+*.code-workspace
