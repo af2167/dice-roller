@@ -34,7 +34,7 @@ You may enter the command 'exit' at any time to end the application.
 
 constexpr std::string_view help_arg = "-h";
 constexpr std::string_view dnd_arg = "-d";
-constexpr std::string_view kob_arg = "k";
+constexpr std::string_view kob_arg = "-k";
 constexpr std::string_view help_text_arg = R"(-h => help
 -d => roll using the dungeons and dragons system
 -k => roll using the kids on bikes system)";

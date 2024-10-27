@@ -6,6 +6,7 @@
 // [V] By: Alex Frazier
 
 import std;
+
 import parser;
 
 auto to_vector = [](int argc, const char **argv) {
