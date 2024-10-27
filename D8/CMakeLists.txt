@@ -3,9 +3,6 @@ set(PROJECT_NAME dice_roller)
 find_package(ctre CONFIG REQUIRED)
 find_package(Catch2 3 REQUIRED)
 
-################################################################################
-# Source groups
-################################################################################
 set(Header_Files
     "dependencies_without_module support.ixx"
     "formatting.ixx"
@@ -13,7 +10,6 @@ set(Header_Files
     "streaming.ixx"
     "system.ixx"
 )
-source_group("Header Files" FILES ${Header_Files})
 
 ################################################################################
 # Target
@@ -41,6 +37,7 @@ elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
         INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
     )
 endif()
+
 ################################################################################
 # Compile definitions
 ################################################################################
