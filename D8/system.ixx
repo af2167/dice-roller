@@ -11,13 +11,13 @@ constexpr auto is_single_die = ctre::match<"^[dD]?(\\d+)$">;
 constexpr auto is_full_dnd_expression = ctre::match<"^(\\d+)[dD]?(\\d+)([\\+\\-]\\d+[aA]?)?$">;
 
 template <typename Gen>
-auto roll_die(int die, Gen &&gen) {
+auto roll_die(int die, Gen&& gen) {
   std::uniform_int_distribution<> distrib(1, die);
   return distrib(std::forward<Gen>(gen));
 }
 
 template <typename T>
-static std::optional<T> parse_from_chars(std::string_view v) {
+std::optional<T> parse_from_chars(std::string_view v) {
   T value = 0;
   if (std::from_chars(v.data(), v.data() + v.length(), value).ec == std::errc{})
     return value;
@@ -26,7 +26,7 @@ static std::optional<T> parse_from_chars(std::string_view v) {
 }
 
 template <typename T>
-static std::optional<T> parse_modifier(std::string_view v) {
+std::optional<T> parse_modifier(std::string_view v) {
   if (v[0] == '+') {
     v = v.substr(1);
   }
@@ -51,10 +51,12 @@ class dungeons_and_dragons_roller {
   int die_count = 1;
   int modifier = 0;
   bool is_multimodifier = false;
+  bool display_running_total = true;
 
   bool parse_coin(std::string_view v) {
     if (v == "coin") {
       die_type = 2;
+      display_running_total = false;
       return true;
     }
 
@@ -148,7 +150,8 @@ class dungeons_and_dragons_roller {
     return false;
   }
 
-  auto roll_not_special(std::mt19937 &gen) const {
+  template <typename Gen>
+  auto roll_not_special(Gen& gen) const {
     std::string result;
     auto total = 0;
 
@@ -168,11 +171,15 @@ class dungeons_and_dragons_roller {
       }
     }
 
-    result += std::format("\nFor a total roll value of: {}", total);
+    if (display_running_total) {
+      result += std::format("\nFor a total roll value of: {}", total);
+    }
+
     return result;
   }
 
-  auto roll_advantage_or_disadvantage(std::mt19937 &gen, bool is_advantage) const {
+  template <typename Gen>
+  auto roll_advantage_or_disadvantage(Gen& gen, bool is_advantage) const {
     auto die1 = roll_die(20, gen);
     auto die2 = roll_die(20, gen);
 
@@ -192,6 +199,7 @@ public:
     die_count = 1;
     modifier = 0;
     is_multimodifier = false;
+    display_running_total = true;
 
     if (parse_coin(v)) {
       return std::nullopt;
@@ -228,7 +236,8 @@ public:
     return std::string{ "That is not a valid roll type" };
   }
 
-  std::string perform_roll(std::mt19937 &gen) const {
+  template <typename Gen>
+  std::string perform_roll(Gen& gen) const {
     switch (special) {
     case special_roll::none:
       return roll_not_special(gen);
@@ -277,7 +286,8 @@ public:
     return std::string{ "That is not a valid roll type" };
   }
 
-  std::string perform_roll(std::mt19937 &gen) {
+  template <typename Gen>
+  std::string perform_roll(Gen& gen) {
     std::string result;
     auto total = 0;
 
@@ -304,11 +314,12 @@ struct system {
   std::variant<dungeons_and_dragons_roller, kids_on_bikes_roller> roller{};
 
   std::optional<std::string> parse(std::string_view v) {
-    return std::visit([v](auto &r) { return r.parse(v); }, roller);
+    return std::visit([v](auto& r) { return r.parse(v); }, roller);
   }
 
-  std::string perform_roll(std::mt19937 &gen) {
-    return std::visit([&gen](auto &r) { return r.perform_roll(gen); }, roller);
+  template <typename Gen>
+  std::string perform_roll(Gen& gen) {
+    return std::visit([&gen](auto& r) { return r.perform_roll(gen); }, roller);
   }
 };
 } // namespace sys

@@ -9,7 +9,7 @@ import std;
 
 import parser;
 
-auto to_vector = [](int argc, const char **argv) {
+auto to_vector = [](int argc, const char** argv) {
   std::vector<std::string_view> args{};
   args.reserve(argc - 1);
 
@@ -20,12 +20,12 @@ auto to_vector = [](int argc, const char **argv) {
   return args;
 };
 
-int main(int argc, const char **argv) {
+int main(int argc, const char** argv) {
   std::random_device rd;
   std::mt19937 gen{ rd() };
 
   if (argc > 1) {
-    parsing::from_argument_list(to_vector(argc, argv), gen);
+    std::println("{}", parsing::from_argument_list(to_vector(argc, argv), gen));
     return 0;
   }
 
