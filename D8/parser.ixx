@@ -35,9 +35,6 @@ You may enter the command 'exit' at any time to end the application.
 constexpr std::string_view help_arg = "-h";
 constexpr std::string_view dnd_arg = "-d";
 constexpr std::string_view kob_arg = "-k";
-constexpr std::string_view help_text_arg = R"(-h => help
--d => roll using the dungeons and dragons system
--k => roll using the kids on bikes system)";
 
 constexpr std::string_view help = "help";
 constexpr std::string_view exit_prompted = "exit";
@@ -48,10 +45,11 @@ constexpr auto is_kob_string = ctre::match<"^[kK]([oO][bB])?$">;
 
 enum class unexpected_prompt { exit, change };
 
-static std::expected<std::string, unexpected_prompt> get_response(std::format_string<> prompt) {
+std::expected<std::string, unexpected_prompt> get_response(std::format_string<> prompt,
+                                                           std::istream& in = std::cin) {
   while (true) {
     std::print(prompt);
-    auto result = stream::getline();
+    auto result = stream::getline(in);
     if (result == help) {
       using namespace std::chrono_literals;
 
@@ -68,7 +66,7 @@ static std::expected<std::string, unexpected_prompt> get_response(std::format_st
   }
 }
 
-static std::optional<sys::system> choose_system(std::string_view choice) {
+std::optional<sys::system> choose_system(std::string_view choice) {
   if (choice.length() < 1) {
     return std::nullopt;
   }
@@ -82,7 +80,7 @@ static std::optional<sys::system> choose_system(std::string_view choice) {
   return std::nullopt;
 }
 
-static std::expected<sys::system, unexpected_prompt> prompt_for_system() {
+std::expected<sys::system, unexpected_prompt> prompt_for_system() {
   while (true) {
     auto response = get_response("What system would you like to use? ");
     if (!response) {
@@ -96,18 +94,18 @@ static std::expected<sys::system, unexpected_prompt> prompt_for_system() {
   }
 }
 
-static void perform_single_roll(sys::dice_roller auto &&roller,
-                                std::string_view v,
-                                std::mt19937 &gen) {
+template <typename Gen>
+std::string perform_single_roll(sys::dice_roller auto&& roller, std::string_view v, Gen& gen) {
   auto parse_error = roller.parse(v);
   if (parse_error) {
-    std::println("{}", *parse_error);
+    return *parse_error;
   } else {
-    std::println("{}", roller.perform_roll(gen));
+    return roller.perform_roll(gen);
   }
 }
 
-static unexpected_prompt prompt_for_roll(sys::system &system, std::mt19937 &gen) {
+template <typename Gen>
+unexpected_prompt prompt_for_roll(sys::system& system, Gen& gen) {
   while (true) {
     auto input = get_response("Please describe the roll: ");
 
@@ -115,12 +113,21 @@ static unexpected_prompt prompt_for_roll(sys::system &system, std::mt19937 &gen)
       return input.error();
     }
 
-    perform_single_roll(system, *input, gen);
+    std::println("{}", perform_single_roll(system, *input, gen));
   }
 }
 
 export namespace parsing {
-export void from_command_line(std::mt19937 &gen) {
+const std::string TOO_FEW_ARGUMENTS = "Too few arguments entered. Enter '-h' for help";
+const std::string TOO_MANY_ARGUMENTS = "Too many arguments entered. Enter '-h' for help";
+const std::string MISSING_ROLL_INFO = "You must enter the roll information. Enter '-h' for help";
+const std::string UNKNOWN_COMMAND = "Unrecognized command. Enter '-h' for help";
+const std::string HELP_TEXT_ARG = R"(-h => help
+-d => roll using the dungeons and dragons system
+-k => roll using the kids on bikes system)";
+
+template <typename Gen>
+void from_command_line(Gen& gen) {
   auto system = prompt_for_system();
 
   while (system) {
@@ -136,42 +143,36 @@ export void from_command_line(std::mt19937 &gen) {
   }
 }
 
-export void from_argument_list(std::span<const std::string_view> strings, std::mt19937 &gen) {
+template <typename Gen>
+std::string from_argument_list(std::span<const std::string_view> strings, Gen& gen) {
   if (strings.size() < 1) {
-    std::println("Too few arguments entered. Enter '-h' for help");
-    return;
+    return TOO_FEW_ARGUMENTS;
   }
 
   if (strings.size() > 2) {
-    std::println("Too many arguments entered. Enter '-h' for help");
-    return;
+    return TOO_MANY_ARGUMENTS;
   }
 
   if (strings[0] == help_arg) {
-    std::println(help_text_arg);
-    return;
+    return HELP_TEXT_ARG;
   }
 
   if (strings[0] == kob_arg) {
     if (strings.size() == 2) {
-      perform_single_roll(sys::kids_on_bikes_roller{}, strings[1], gen);
-      return;
+      return perform_single_roll(sys::kids_on_bikes_roller{}, strings[1], gen);
     }
 
-    std::println("You must enter the roll information. Enter '-h' for help");
-    return;
+    return MISSING_ROLL_INFO;
   }
 
   if (strings[0] == dnd_arg) {
     if (strings.size() == 2) {
-      perform_single_roll(sys::dungeons_and_dragons_roller{}, strings[1], gen);
-      return;
+      return perform_single_roll(sys::dungeons_and_dragons_roller{}, strings[1], gen);
     }
 
-    std::println("You must enter the roll information. Enter '-h' for help");
-    return;
+    return MISSING_ROLL_INFO;
   }
 
-  std::println("Unrecognized command. Enter '-h' for help");
+  return UNKNOWN_COMMAND;
 }
 } // namespace parsing

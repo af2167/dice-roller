@@ -13,3 +13,4 @@ AllowAllParametersOfDeclarationOnNextLine: false
 BinPackParameters: false
 BinPackArguments: false
 Cpp11BracedListStyle: false
+PointerAlignment: Left
