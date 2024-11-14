@@ -11,18 +11,21 @@ constexpr auto is_single_die = ctre::match<"^[dD]?(\\d+)$">;
 constexpr auto is_full_dnd_expression = ctre::match<"^(\\d+)[dD]?(\\d+)([\\+\\-]\\d+[aA]?)?$">;
 
 template <typename Gen>
-auto roll_die(int die, Gen&& gen) {
+auto roll_die(int die, Gen& gen) {
   std::uniform_int_distribution<> distrib(1, die);
-  return distrib(std::forward<Gen>(gen));
+
+  return distrib(gen);
 }
 
 template <typename T>
 std::optional<T> parse_from_chars(std::string_view v) {
   T value = 0;
-  if (std::from_chars(v.data(), v.data() + v.length(), value).ec == std::errc{})
+
+  if (std::from_chars(v.data(), v.data() + v.length(), value).ec == std::errc{}) {
     return value;
-  else
-    return std::nullopt;
+  }
+
+  return std::nullopt;
 }
 
 template <typename T>
