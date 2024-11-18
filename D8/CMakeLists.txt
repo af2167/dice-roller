@@ -6,6 +6,8 @@ find_package(Catch2 3 REQUIRED)
 set(Header_Files
     "dependencies_without_module support.ixx"
     "formatting.ixx"
+    "util.ixx"
+    "dnd_parsing.ixx"
     "parser.ixx"
     "streaming.ixx"
     "system.ixx"
