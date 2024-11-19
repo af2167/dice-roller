@@ -31,6 +31,8 @@ struct result {
   bool is_multimodifier = false;
   bool display_running_total = true;
 
+  auto operator<=>(const result&) const = default;
+
   template <typename Gen>
   auto roll_not_special(Gen& gen) const {
     std::string result;

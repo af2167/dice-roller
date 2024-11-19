@@ -8,6 +8,8 @@ export namespace parse_kob {
 struct result {
   int die_type = 4;
 
+  auto operator<=>(const result&) const = default;
+
   void graduate_die() {
     switch (die_type) {
     case 4:

@@ -23,7 +23,7 @@ target_link_libraries(modules PRIVATE ctre::ctre)
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE modules)
 
-add_executable(dice_roller_tests tests.cpp)
+add_executable(dice_roller_tests formatting_tests.cpp parser_tests.cpp dnd_parsing_tests.cpp kob_parsing_tests.cpp)
 target_link_libraries(dice_roller_tests PRIVATE modules)
 target_link_libraries(dice_roller_tests PRIVATE Catch2::Catch2WithMain)
 
