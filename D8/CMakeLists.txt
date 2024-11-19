@@ -8,6 +8,7 @@ set(Header_Files
     "formatting.ixx"
     "util.ixx"
     "dnd_parsing.ixx"
+    "kob_parsing.ixx"
     "parser.ixx"
     "streaming.ixx"
     "system.ixx"

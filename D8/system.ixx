@@ -1,9 +1,8 @@
 export module system;
 
 import std;
-import utility;
-import formatting;
 import dnd;
+import kob;
 
 enum class special_roll { none, advantage, disadvantage };
 
@@ -47,58 +46,23 @@ public:
 };
 
 class kids_on_bikes_roller {
-  int die_type = 4;
-
-  void graduate_die() {
-    switch (die_type) {
-    case 4:
-      die_type = 6;
-      break;
-    case 6:
-      die_type = 8;
-      break;
-    case 8:
-      die_type = 10;
-      break;
-    case 10:
-      die_type = 12;
-      break;
-    case 12:
-      die_type = 20;
-      break;
-    }
-  }
+  parse_kob::result r_;
 
 public:
   std::optional<std::string> parse(std::string_view v) {
-    auto maybe_die_type = utility::parse_from_chars<int>(v);
-    if (maybe_die_type) {
-      die_type = *maybe_die_type;
+    auto r = parse_kob::parse(v);
+
+    if (r) {
+      r_ = *r;
       return std::nullopt;
     }
 
-    return std::string{ "That is not a valid roll type" };
+    return std::move(r.error());
   }
 
   template <typename Gen>
   std::string perform_roll(Gen& gen) {
-    std::string result;
-    auto total = 0;
-
-    for (auto keep_rolling = true; keep_rolling;) {
-      auto roll_result = utility::roll_die(die_type, gen);
-      total += roll_result;
-      result += format::format_die(die_type, roll_result);
-      if (roll_result != die_type) {
-        keep_rolling = false;
-      } else {
-        result += " EXPLOSION, ";
-        graduate_die();
-      }
-    }
-
-    result += std::format("\nFor a total roll value of: {}", total);
-    return result;
+    return r_.perform_roll(gen);
   }
 };
 
