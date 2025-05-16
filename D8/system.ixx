@@ -6,6 +6,38 @@ import kob;
 
 enum class special_roll { none, advantage, disadvantage };
 
+struct roller_base {
+  virtual ~roller_base() = default;
+  roller_base() = default;
+
+  roller_base(roller_base&&) = delete;
+  roller_base& operator=(roller_base&&) = delete;
+  roller_base(const roller_base&) = delete;
+  roller_base& operator=(const roller_base&) = delete;
+
+  virtual std::optional<std::string> parse(std::string_view v) = 0;
+
+  virtual std::string perform_roll(std::mt19937& gen) = 0;
+};
+
+template <typename T>
+class roller_impl final : public roller_base {
+  T t;
+
+public:
+  template <typename... Args>
+  roller_impl(Args&&... args) : t{ std::forward<Args>(args)... } {
+  }
+
+  std::optional<std::string> parse(std::string_view v) override {
+    return t.parse(v);
+  }
+
+  std::string perform_roll(std::mt19937& gen) {
+    return t.perform_roll(gen);
+  }
+};
+
 export namespace sys {
 // clang-format off
 template <typename T>
@@ -68,16 +100,20 @@ public:
 
 enum class rolling_type { dungeons_and_dragons, kids_on_bikes };
 
-struct system {
-  std::variant<dungeons_and_dragons_roller, kids_on_bikes_roller> roller{};
+class system {
+  std::unique_ptr<roller_base> base_;
 
-  std::optional<std::string> parse(std::string_view v) {
-    return std::visit([v](auto& r) { return r.parse(v); }, roller);
+public:
+  template <dice_roller T>
+  system(T&& t) : base_{ std::make_unique<roller_impl<T>>(std::forward<T>(t)) } {
   }
 
-  template <typename Gen>
-  std::string perform_roll(Gen& gen) {
-    return std::visit([&gen](auto& r) { return r.perform_roll(gen); }, roller);
+  std::optional<std::string> parse(std::string_view v) {
+    return base_->parse(v);
+  }
+
+  std::string perform_roll(std::mt19937& gen) {
+    return base_->perform_roll(gen);
   }
 };
 } // namespace sys
